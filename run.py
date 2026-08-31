@@ -13,7 +13,7 @@ import threading
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-ENV_PATH = BASE_DIR / ".env"
+ENV_PATH = Path(os.environ.get("NICK100_ENV", str(BASE_DIR / ".env")))
 NICKS_PATH = BASE_DIR / "nicks.txt"
 
 
@@ -125,41 +125,53 @@ def main():
     def drop(_conn, _msg):
         return True
 
-    def connect_nick(nick: str, resource: str, acc: dict) -> bool:
+    def connect_nick(nick: str, resource: str, acc: dict, retries: int = 1) -> bool:
         server = SERVER or acc["domain"]
-        cl = xmpppy.Client(server, debug=[])
-        try:
-            if not cl.connect((server, 5222)):
-                log.error("[%s] connect failed", nick)
+        last_err = None
+        for attempt in range(retries + 1):
+            cl = xmpppy.Client(server, debug=[])
+            try:
+                if not cl.connect((server, 5222)):
+                    last_err = "connect returned None"
+                    if attempt < retries:
+                        time.sleep(2)
+                        continue
+                    log.error("[%s] connect failed (after %d tries)", nick, retries + 1)
+                    return False
+            except Exception as e:
+                last_err = f"connect error: {e!r}"
+                if attempt < retries:
+                    time.sleep(2)
+                    continue
+                log.error("[%s] %s (after %d tries)", nick, last_err, retries + 1)
                 return False
-        except Exception as e:
-            log.error("[%s] connect error: %s", nick, e)
-            return False
-        try:
-            if not cl.auth(acc["node"], acc["password"], resource=resource):
-                log.error("[%s] auth failed (jid=%s)", nick, acc["jid"])
-                try:
-                    cl.disconnect()
-                except Exception:
-                    pass
+            # connect berhasil
+            try:
+                if not cl.auth(acc["node"], acc["password"], resource=resource):
+                    log.error("[%s] auth failed (jid=%s)", nick, acc["jid"])
+                    try:
+                        cl.disconnect()
+                    except Exception:
+                        pass
+                    return False
+            except Exception as e:
+                log.error("[%s] auth error: %s", nick, e)
                 return False
-        except Exception as e:
-            log.error("[%s] auth error: %s", nick, e)
-            return False
-        cl.send(Presence())
+            cl.send(Presence())
 
-        # Join MUC, no backlog
-        p = Presence(to=f"{ROOM}/{nick}")
-        p.setTag("x", namespace="http://jabber.org/protocol/muc")
-        p.setTag("x").setTag("history", attrs={"maxchars": "0", "maxstanzas": "0"})
-        cl.send(p)
+            # Join MUC, no backlog
+            p = Presence(to=f"{ROOM}/{nick}")
+            p.setTag("x", namespace="http://jabber.org/protocol/muc")
+            p.setTag("x").setTag("history", attrs={"maxchars": "0", "maxstanzas": "0"})
+            cl.send(p)
 
-        cl.RegisterHandler("message", drop)
-        with _lock:
-            _clients.append((nick, cl, acc))
-        log.info("[%s] joined %s as %s (resource=%s)",
-                 nick, ROOM, acc["jid"], resource)
-        return True
+            cl.RegisterHandler("message", drop)
+            with _lock:
+                _clients.append((nick, cl, acc))
+            log.info("[%s] joined %s as %s (resource=%s)",
+                     nick, ROOM, acc["jid"], resource)
+            return True
+        return False
 
     # Sequential joins per JID: JID1 → 20 nick → JID2 → 20 nick → ...
     nick_offset = 0
@@ -178,10 +190,11 @@ def main():
             if _stop.is_set():
                 log.info("stop requested before %s", nick)
                 break
-            if not connect_nick(nick, resource, acc):
-                log.error("stopped at %s (JID%d)", nick, acc["idx"])
-                _stop.set()
-                break
+            ok = connect_nick(nick, resource, acc)
+            if not ok:
+                log.warning("[%s] gagal, skip & lanjut (JID%d)", nick, acc["idx"])
+                # tetap lanjut, jangan stop semua
+                continue
             # sleep responsif ke SIGINT
             slept = 0.0
             while slept < JOIN_DELAY and not _stop.is_set():
