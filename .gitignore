@@ -1,0 +1,12 @@
+# Jangan commit yang ada kredensial / state lokal
+.env
+*.log
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.swp
+*.bak
+.idea/
+.vscode/
+run.pid

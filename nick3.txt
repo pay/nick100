@@ -1,0 +1,22 @@
+# File 3/7: nick 41..60
+# Format: nick|resource|display|full_name|kota_full
+prayitno_sbw|702bbR3D|prayitno_sbw|Prayitno|Situbondo
+endah_clg|Kay5Z18p|endah_clg|Endah|Tasikmalaya
+diding_snt|gjGQ6SOV|diding_snt|Diding|Babat
+putri_pkj|CIcWo5Os|putri_pkj|Putri|Palangkaraya
+wulan_mra|hpNRgeGK|wulan_mra|Wulan|Subawa
+yoga_kdr|ynLasC7N|yoga_kdr|Yoga|Cimahi
+ismail_sgr|2Dop7Rtb|ismail_sgr|Ismail|Tulakan
+yusup_yog|EPApP5oc|yusup_yog|Yusup|Subang
+agus_kbn|uAQmXTFm|agus_kbn|Agus|Tegal
+umar_clp|8tYonVs7|umar_clp|Umar|Palembangbaru
+jalal_bdg2|ElnzP6jy|jalal_bdg2|Jalal|Malangbaru
+asep_pnk|n8iddy32|asep_pnk|Asep|Sungai Penuh
+bambang_sna|T95ul6Ub|bambang_sna|Bambang|Batu Kukis
+ati_mks|Pxxukarv|ati_mks|Ati|Cirebon
+imam_smi|7h7mwYYA|imam_smi|Imam|Gorontalo
+kosasih_sko|dDx5lw3b|kosasih_sko|Kosasih|Semarang
+meri_skh|zYVccd5p|meri_skh|Meri|Garut
+galang_ldb|U3vq7MqS|galang_ldb|Galang|Bandung
+wahidin_smt|traU4N6b|wahidin_smt|Wahidin|Bojonegoro
+soleh_msr|oD77xpAE|soleh_msr|Soleh|Manokwari

@@ -1,0 +1,10 @@
+# XMPP nick100 — Python dependencies
+# Install: pip install -r requirements.txt
+# Butuh: Python >= 3.8
+
+# XMPP client (wajib) — library ringan, sync, single-thread friendly
+xmpppy>=0.7.0
+
+# Optional: dnspython untuk fallback DNS kalau server MUC tidak resolve via getaddrinfo
+# Aman di-skip jika tidak butuh
+# dnspython>=2.0

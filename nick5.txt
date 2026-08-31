@@ -1,0 +1,22 @@
+# File 5/7: nick 81..100
+# Format: nick|resource|display|full_name|kota_full
+erlan_mdo|hpS3cIUc|erlan_mdo|Erlan|Jakarta
+kresna_gto|ZhLIMsAK|kresna_gto|Kresna|Baubau
+salman_abr|AOBBbMEo|salman_abr|Salman|Cilacap
+oka_bws|VWClDghA|oka_bws|Oka|Probolinggo
+gunawan_sbg|fBFcNfTW|gunawan_sbg|Gunawan|Surabaya
+yani_trj|FdFx6i19|yani_trj|Yani|Waingapu
+darma_wrh|TYm8E74k|darma_wrh|Darma|Karangsari
+suparno_tla|W5evUj3r|suparno_tla|Suparno|Jayapura
+rauf_grt|YiF5mqFt|rauf_grt|Rauf|Mojokerto
+desta_wng|clj6Q3kW|desta_wng|Desta|Tangerangbaru
+maya_pti|hGNw2IJ2|maya_pti|Maya|Sigli
+tomi_bks|g9NyXq9J|tomi_bks|Tomi|Trenggalek
+sugeng_rph|wVBkUcYp|sugeng_rph|Sugeng|Sabang
+suwarno_sla|N9KPtacj|suwarno_sla|Suwarno|Bawen
+dedi_krc|MAF3ioOb|dedi_krc|Dedi|Blitar
+dimas_tgl|awgwnKKm|dimas_tgl|Dimas|Tuban
+jaka_sbn|MDi6pjfN|jaka_sbn|Jaka|Semarangbaru
+sahli_jpr|2WyqaNIv|sahli_jpr|Sahli|Bangkalan
+erwin_btk|OB6Tp4cG|erwin_btk|Erwin|Batugede
+taufik_jkt|zodWaI6i|taufik_jkt|Taufik|Pontianak
