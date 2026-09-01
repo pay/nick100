@@ -236,22 +236,38 @@ def main():
             for nick, cl, acc in snapshot:
                 if _stop.is_set():
                     break
+                # Deteksi disconnect: cl.connected == '' artinya socket putus
+                if AUTO_RECONNECT and not cl.isConnected():
+                    log.warning("[%s] disconnected (cl.connected=%r) — reconnect",
+                                nick, cl.connected)
+                    def _do_reconnect(n=nick, c=cl, a=acc):
+                        with _lock:
+                            for i, (nn, cc, aa) in enumerate(_clients):
+                                if nn == n and cc is c:
+                                    _clients.pop(i)
+                                    break
+                        if reconnect_one(n, a):
+                            log.info("[%s] reconnected", n)
+                        else:
+                            log.error("[%s] reconnect failed, will drop", n)
+                    threading.Thread(target=_do_reconnect, daemon=True).start()
+                    continue
                 try:
                     cl.Process(0.5)
                 except Exception as e:
                     if AUTO_RECONNECT:
                         log.warning("[%s] process error: %s — reconnect", nick, e)
-                        def _do_reconnect(n=nick, a=acc):
+                        def _do_reconnect2(n=nick, c=cl, a=acc):
                             with _lock:
                                 for i, (nn, cc, aa) in enumerate(_clients):
-                                    if nn == n and cc is cl:
+                                    if nn == n and cc is c:
                                         _clients.pop(i)
                                         break
                             if reconnect_one(n, a):
                                 log.info("[%s] reconnected", n)
                             else:
                                 log.error("[%s] reconnect failed, will drop", n)
-                        threading.Thread(target=_do_reconnect, daemon=True).start()
+                        threading.Thread(target=_do_reconnect2, daemon=True).start()
                     else:
                         log.debug("[%s] process error: %s", nick, e)
     except KeyboardInterrupt:
