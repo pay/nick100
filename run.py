@@ -60,6 +60,7 @@ def main():
     ROOM = cfg.get("MUC", "").strip()
     NICKS_PER_JID = int(cfg.get("NICKS_PER_JID", "20") or "20")
     JOIN_DELAY = float(cfg.get("JOIN_DELAY", "0.3") or "0.3")
+    AUTO_RECONNECT = cfg.get("AUTO_RECONNECT", "off").strip().lower() in ("1", "true", "on", "yes")
 
     if not ROOM:
         log.error("MUC kosong di %s", ENV_PATH)
@@ -125,25 +126,29 @@ def main():
     def drop(_conn, _msg):
         return True
 
-    def connect_nick(nick: str, resource: str, acc: dict, retries: int = 1) -> bool:
+    def connect_nick(nick: str, resource: str, acc: dict, retries: int = 2) -> bool:
         server = SERVER or acc["domain"]
-        last_err = None
+        backoff = 2  # detik
         for attempt in range(retries + 1):
             cl = xmpppy.Client(server, debug=[])
             try:
                 if not cl.connect((server, 5222)):
-                    last_err = "connect returned None"
                     if attempt < retries:
-                        time.sleep(2)
+                        log.warning("[%s] connect fail, retry in %ds (try %d/%d)",
+                                    nick, backoff, attempt + 1, retries)
+                        time.sleep(backoff)
+                        backoff = min(backoff * 2, 10)
                         continue
                     log.error("[%s] connect failed (after %d tries)", nick, retries + 1)
                     return False
             except Exception as e:
-                last_err = f"connect error: {e!r}"
                 if attempt < retries:
-                    time.sleep(2)
+                    log.warning("[%s] connect error: %s, retry in %ds (try %d/%d)",
+                                nick, e, backoff, attempt + 1, retries)
+                    time.sleep(backoff)
+                    backoff = min(backoff * 2, 10)
                     continue
-                log.error("[%s] %s (after %d tries)", nick, last_err, retries + 1)
+                log.error("[%s] connect error: %s (after %d tries)", nick, e, retries + 1)
                 return False
             # connect berhasil
             try:
@@ -178,6 +183,8 @@ def main():
     for acc in accounts:
         if nicks_per_jid_map:
             chunk = nicks_per_jid_map[acc["idx"]]
+            log.info("--- JID%d (%s) mulai %d nick (per-file) ---",
+                     acc["idx"], acc["jid"], len(chunk))
         else:
             chunk = nicks_all[nick_offset:nick_offset + NICKS_PER_JID]
             if len(chunk) < NICKS_PER_JID:
@@ -185,7 +192,7 @@ def main():
                           acc["idx"], len(chunk), NICKS_PER_JID)
                 break
             nick_offset += NICKS_PER_JID
-        log.info("--- JID%d (%s) mulai %d nick ---", acc["idx"], acc["jid"], len(chunk))
+            log.info("--- JID%d (%s) mulai %d nick ---", acc["idx"], acc["jid"], len(chunk))
         for nick, resource in chunk:
             if _stop.is_set():
                 log.info("stop requested before %s", nick)
@@ -202,7 +209,6 @@ def main():
                 slept += 0.05
         if _stop.is_set():
             break
-        nick_offset += NICKS_PER_JID
 
     log.info("All %d nicks joined. Idling (drop all messages)...", len(_clients))
     log.info("Press Ctrl+C to stop.")
@@ -215,17 +221,39 @@ def main():
         _stop.set()
     signal.signal(signal.SIGINT, _on_sigint)
 
+    # Reconnect helper — dinonaktifkan kecuali AUTO_RECONNECT=on
+    def reconnect_one(nick: str, acc: dict) -> bool:
+        if not AUTO_RECONNECT:
+            return False  # silent
+        # resource deterministik dari nick + timestamp
+        resource = "rs" + nick.replace("_", "")[-8:] + str(int(time.time()) % 1000)
+        return connect_nick(nick, resource, acc)
+
     try:
         while not _stop.is_set():
             with _lock:
                 snapshot = list(_clients)
-            for nick, cl, _ in snapshot:
+            for nick, cl, acc in snapshot:
                 if _stop.is_set():
                     break
                 try:
-                    cl.Process(0.2)
+                    cl.Process(0.5)
                 except Exception as e:
-                    log.warning("[%s] process error: %s", nick, e)
+                    if AUTO_RECONNECT:
+                        log.warning("[%s] process error: %s — reconnect", nick, e)
+                        def _do_reconnect(n=nick, a=acc):
+                            with _lock:
+                                for i, (nn, cc, aa) in enumerate(_clients):
+                                    if nn == n and cc is cl:
+                                        _clients.pop(i)
+                                        break
+                            if reconnect_one(n, a):
+                                log.info("[%s] reconnected", n)
+                            else:
+                                log.error("[%s] reconnect failed, will drop", n)
+                        threading.Thread(target=_do_reconnect, daemon=True).start()
+                    else:
+                        log.debug("[%s] process error: %s", nick, e)
     except KeyboardInterrupt:
         log.info("KeyboardInterrupt — stopping...")
     finally:
