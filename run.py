@@ -126,6 +126,47 @@ def main():
     def drop(_conn, _msg):
         return True
 
+    # Presence handler — detect kick/ban/leave dari MUC
+    def on_presence(conn, pres):
+        from_to = pres.getFrom() or ""
+        # only our own nick in the MUC
+        if not from_to.startswith(ROOM + "/"):
+            return True
+        nick = from_to[len(ROOM) + 1:]
+        t = pres.getType() or "available"
+        if t in ("unavailable", "error"):
+            # Cek apakah kita yang di-kick (ada status code 307)
+            x = pres.getTag("x")
+            code = ""
+            if x:
+                s = x.getTag("status")
+                if s:
+                    code = s.getAttr("code") or ""
+            if code == "307":  # kick
+                log.warning("[%s] kicked from MUC (code=307)", nick)
+            elif code == "301":  # ban
+                log.warning("[%s] banned from MUC (code=301)", nick)
+            else:
+                log.info("[%s] left MUC (type=%s code=%s)", nick, t, code)
+            # Trigger reconnect kalau AUTO_RECONNECT & bukan self-disconnect
+            if AUTO_RECONNECT:
+                for i, (nn, cc, aa) in enumerate(list(_clients)):
+                    if nn == nick:
+                        log.info("[%s] triggering reconnect from presence handler", nick)
+                        def _do_reconnect(c=cc, a=aa, n=nick):
+                            with _lock:
+                                for j, (nn2, cc2, aa2) in enumerate(_clients):
+                                    if nn2 == n and cc2 is c:
+                                        _clients.pop(j)
+                                        break
+                            if reconnect_one(n, a):
+                                log.info("[%s] reconnected (from presence)", n)
+                            else:
+                                log.error("[%s] reconnect failed", n)
+                        threading.Thread(target=_do_reconnect, daemon=True).start()
+                        break
+        return True
+
     def connect_nick(nick: str, resource: str, acc: dict, retries: int = 2) -> bool:
         server = SERVER or acc["domain"]
         backoff = 2  # detik
@@ -171,6 +212,7 @@ def main():
             cl.send(p)
 
             cl.RegisterHandler("message", drop)
+            cl.RegisterHandler("presence", on_presence)
             with _lock:
                 _clients.append((nick, cl, acc))
             log.info("[%s] joined %s as %s (resource=%s)",
